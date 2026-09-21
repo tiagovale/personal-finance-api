@@ -4,7 +4,7 @@ REST API for managing personal finance accounts, developed with Java and Spring 
 
 This project is being built as a hands-on study of REST API design, HTTP semantics, Java, Spring Boot, persistence, and related backend practices.
 
-The implementation is intentionally simple, keeping the focus on API design rather than business-domain complexity.
+The implementation is intentionally simple, keeping the focus on API design and backend practices rather than business-domain complexity.
 
 ## Technologies
 
@@ -17,7 +17,7 @@ The implementation is intentionally simple, keeping the focus on API design rath
 
 ## Project Structure
 
-The project uses a **package-by-feature** structure.
+The project uses a **package-by-feature** structure, keeping the classes related to each domain resource together.
 
 ```text
 src/main/java/com/rest/personalfinance/personal_finance_api
@@ -29,7 +29,9 @@ src/main/java/com/rest/personalfinance/personal_finance_api
 │   ├── AccountService.java
 │   ├── AccountType.java
 │   └── dto
-│       └── CreateAccountRequest.java
+│       ├── CreateAccountRequest.java
+│       ├── UpdateAccountRequest.java
+│       └── UpdateAccountPatchRequest.java
 │
 └── PersonalFinanceApiApplication.java
 ```
@@ -95,13 +97,16 @@ Base URL:
 
 ### Accounts
 
-| Method | Endpoint         | Description           |
-| ------ | ---------------- | --------------------- |
-| POST   | `/accounts`      | Create an account     |
-| GET    | `/accounts`      | Find all accounts     |
-| GET    | `/accounts/{id}` | Find an account by ID |
+| Method | Endpoint         | Description                 | Response                           |
+| ------ | ---------------- | --------------------------- | ---------------------------------- |
+| POST   | `/accounts`      | Create an account           | `201 Created`                      |
+| GET    | `/accounts`      | Find all accounts           | `200 OK`                           |
+| GET    | `/accounts/{id}` | Find an account by ID       | `200 OK` / `404 Not Found`         |
+| PUT    | `/accounts/{id}` | Replace an account          | `200 OK` / `404 Not Found`         |
+| PATCH  | `/accounts/{id}` | Partially update an account | `200 OK` / `404 Not Found`         |
+| DELETE | `/accounts/{id}` | Delete an account           | `204 No Content` / `404 Not Found` |
 
-### Create Account
+## Create Account
 
 ```http
 POST /api/v1/accounts
@@ -134,7 +139,7 @@ Location: /api/v1/accounts/1
 }
 ```
 
-### Find All Accounts
+## Find All Accounts
 
 ```http
 GET /api/v1/accounts
@@ -157,7 +162,17 @@ Response:
 ]
 ```
 
-### Find Account by ID
+When no accounts exist, the endpoint returns an empty collection:
+
+```http
+200 OK
+```
+
+```json
+[]
+```
+
+## Find Account by ID
 
 ```http
 GET /api/v1/accounts/1
@@ -167,6 +182,109 @@ If the account exists:
 
 ```http
 200 OK
+```
+
+```json
+{
+  "id": 1,
+  "name": "Conta Principal",
+  "type": "CHECKING",
+  "balance": 1500.00
+}
+```
+
+If the account does not exist:
+
+```http
+404 Not Found
+```
+
+## Replace Account
+
+The `PUT` endpoint replaces the account representation.
+
+```http
+PUT /api/v1/accounts/1
+Content-Type: application/json
+```
+
+Request:
+
+```json
+{
+  "name": "Conta Principal",
+  "type": "CHECKING",
+  "balance": 2000.00
+}
+```
+
+Response:
+
+```http
+200 OK
+```
+
+```json
+{
+  "id": 1,
+  "name": "Conta Principal",
+  "type": "CHECKING",
+  "balance": 2000.00
+}
+```
+
+If the account does not exist:
+
+```http
+404 Not Found
+```
+
+## Partially Update Account
+
+The `PATCH` endpoint allows individual fields to be updated without replacing the entire account.
+
+```http
+PATCH /api/v1/accounts/1
+Content-Type: application/json
+```
+
+For example, only the balance can be updated:
+
+```json
+{
+  "balance": 2500.00
+}
+```
+
+The other fields remain unchanged.
+
+Response:
+
+```http
+200 OK
+```
+
+```json
+{
+  "id": 1,
+  "name": "Conta Principal",
+  "type": "CHECKING",
+  "balance": 2500.00
+}
+```
+
+The PATCH request uses `JsonNullable` to distinguish between a field that was not provided and a field that was explicitly provided.
+
+## Delete Account
+
+```http
+DELETE /api/v1/accounts/1
+```
+
+If the account exists and is successfully deleted:
+
+```http
+204 No Content
 ```
 
 If the account does not exist:
@@ -185,24 +303,57 @@ SAVINGS
 CREDIT_CARD
 ```
 
+## REST and HTTP Semantics
+
+The API is being developed with a focus on understanding and applying HTTP semantics in practice.
+
+Some of the concepts explored in the current implementation include:
+
+* Resource-oriented endpoints
+* HTTP methods: `POST`, `GET`, `PUT`, `PATCH`, and `DELETE`
+* HTTP status codes such as `200`, `201`, `204`, `404`, and `405`
+* `Location` header after resource creation
+* `Optional` for resource lookup
+* Idempotent update operations
+* Partial resource updates with `PATCH`
+* DTOs using Java records
+* `JsonNullable` for PATCH request semantics
+* Package-by-feature organization
+
 ## Development
 
 This project is continuously evolving as new REST concepts and backend practices are explored.
 
-The implementation and decisions made during development are documented through a series of technical articles.
+The implementation and design decisions made during development are documented through a series of technical articles.
 
 ## Roadmap
+
+### REST and API Design
 
 * [x] Create Account resource
 * [x] POST `/api/v1/accounts`
 * [x] GET `/api/v1/accounts`
 * [x] GET `/api/v1/accounts/{id}`
-* [ ] PUT `/api/v1/accounts/{id}`
-* [ ] DELETE `/api/v1/accounts/{id}`
-* [ ] Validation and error handling
+* [x] PUT `/api/v1/accounts/{id}`
+* [x] PATCH `/api/v1/accounts/{id}`
+* [x] DELETE `/api/v1/accounts/{id}`
+* [ ] REST Level 3 / HATEOAS
+* [ ] Caching
+
+### API Improvements
+
+* [ ] Bean Validation
+* [ ] Global exception handling
+* [ ] Response DTOs
+* [ ] OpenAPI / Swagger
 * [ ] Automated tests
-* [ ] Authentication
-* [ ] Further REST API improvements
+* [ ] Database migrations
+
+### Domain
+
+* [ ] Transaction resource
+* [ ] User resource
+* [ ] Authentication and authorization
 
 ## Author
 
