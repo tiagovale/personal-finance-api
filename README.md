@@ -6,11 +6,14 @@ This project is being built as a hands-on study of REST API design, HTTP semanti
 
 The implementation is intentionally simple, keeping the focus on API design and backend practices rather than business-domain complexity.
 
+**Repository:** https://github.com/tiagovale/personal-finance-api
+
 ## Technologies
 
 * Java 21
 * Spring Boot 4
 * Spring Data JPA
+* Spring HATEOAS
 * PostgreSQL 16
 * Docker
 * Maven
@@ -25,7 +28,9 @@ src/main/java/com/rest/personalfinance/personal_finance_api
 ├── account
 │   ├── Account.java
 │   ├── AccountController.java
+│   ├── AccountModelAssembler.java
 │   ├── AccountRepository.java
+│   ├── AccountResponse.java
 │   ├── AccountService.java
 │   ├── AccountType.java
 │   └── dto
@@ -151,26 +156,43 @@ Response:
 200 OK
 ```
 
+The collection is represented using **Spring HATEOAS** and includes navigation links:
+
 ```json
-[
-  {
-    "id": 1,
-    "name": "Conta Principal",
-    "type": "CHECKING",
-    "balance": 1500.00
+{
+  "_embedded": {
+    "accountResponseList": [
+      {
+        "id": 1,
+        "name": "Conta Principal",
+        "type": "CHECKING",
+        "balance": 1500.00,
+        "_links": {
+          "self": {
+            "href": "http://localhost:8080/api/v1/accounts/1"
+          },
+          "all-accounts": {
+            "href": "http://localhost:8080/api/v1/accounts"
+          }
+        }
+      }
+    ]
+  },
+  "_links": {
+    "self": {
+      "href": "http://localhost:8080/api/v1/accounts"
+    }
   }
-]
+}
 ```
 
-When no accounts exist, the endpoint returns an empty collection:
+When no accounts exist, the endpoint still returns:
 
 ```http
 200 OK
 ```
 
-```json
-[]
-```
+with an empty collection.
 
 ## Find Account by ID
 
@@ -189,7 +211,15 @@ If the account exists:
   "id": 1,
   "name": "Conta Principal",
   "type": "CHECKING",
-  "balance": 1500.00
+  "balance": 1500.00,
+  "_links": {
+    "self": {
+      "href": "http://localhost:8080/api/v1/accounts/1"
+    },
+    "all-accounts": {
+      "href": "http://localhost:8080/api/v1/accounts"
+    }
+  }
 }
 ```
 
@@ -273,7 +303,7 @@ Response:
 }
 ```
 
-The PATCH request uses `JsonNullable` to distinguish between a field that was not provided and a field that was explicitly provided.
+The PATCH request uses `JsonNullable` to distinguish between a field that was not provided and a field that was explicitly provided as `null`.
 
 ## Delete Account
 
@@ -319,6 +349,33 @@ Some of the concepts explored in the current implementation include:
 * DTOs using Java records
 * `JsonNullable` for PATCH request semantics
 * Package-by-feature organization
+* REST Level 3
+* HATEOAS
+* Hypermedia links
+* Representation models
+* Collection representations
+* `RepresentationModelAssembler`
+
+## REST Level 3 / HATEOAS
+
+The API currently includes a REST Level 3 implementation using **Spring HATEOAS**.
+
+Resource representations expose hypermedia links that allow clients to navigate between related resources.
+
+For example, an account representation exposes:
+
+* `self` — link to the current account
+* `all-accounts` — link to the account collection
+
+The implementation uses:
+
+* `RepresentationModel`
+* `CollectionModel`
+* `RepresentationModelAssembler`
+* `linkTo()`
+* `methodOn()`
+
+The goal is to explore how hypermedia can be used as part of a REST API rather than simply returning resource data.
 
 ## Development
 
@@ -337,14 +394,15 @@ The implementation and design decisions made during development are documented t
 * [x] PUT `/api/v1/accounts/{id}`
 * [x] PATCH `/api/v1/accounts/{id}`
 * [x] DELETE `/api/v1/accounts/{id}`
-* [ ] REST Level 3 / HATEOAS
-* [ ] Caching
+* [x] REST Level 3 / HATEOAS
+* [ ] HTTP Caching / ETag
+* [ ] Pagination
 
 ### API Improvements
 
 * [ ] Bean Validation
 * [ ] Global exception handling
-* [ ] Response DTOs
+* [ ] DTO improvements
 * [ ] OpenAPI / Swagger
 * [ ] Automated tests
 * [ ] Database migrations
