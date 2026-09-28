@@ -68,6 +68,10 @@
 			<artifactId>jackson-databind-nullable</artifactId>
 			<version>0.2.11</version>
 		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-hateoas</artifactId>
+		</dependency>
 	</dependencies>
 
 	<build>
