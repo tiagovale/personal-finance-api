@@ -24,7 +24,7 @@ public class AccountModelAssembler
         response.add(
                 linkTo(
                         methodOn(AccountController.class)
-                                .getById(account.getId())
+                                .getById(account.getId(), null)
                 ).withSelfRel()
         );
 

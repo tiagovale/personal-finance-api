@@ -5,7 +5,9 @@ import com.rest.personalfinance.personal_finance_api.account.dto.CreateAccountRe
 import com.rest.personalfinance.personal_finance_api.account.dto.UpdateAccountPatchRequest;
 import com.rest.personalfinance.personal_finance_api.account.dto.UpdateAccountRequest;
 import org.springframework.hateoas.CollectionModel;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.util.DigestUtils;
 import org.springframework.web.bind.annotation.*;
 
 import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.linkTo;
@@ -14,16 +16,20 @@ import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.methodOn;
 
 import java.net.URI;
 import java.util.List;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/v1/accounts")
 public class AccountController {
     private final AccountService accountService;
     private final AccountModelAssembler accountModelAssembler;
+    private final ETagGenerator eTagGenerator;
 
-    public AccountController(AccountService accountService, AccountModelAssembler accountModelAssembler) {
+
+    public AccountController(AccountService accountService, AccountModelAssembler accountModelAssembler, ETagGenerator eTagGenerator) {
         this.accountService = accountService;
         this.accountModelAssembler = accountModelAssembler;
+        this.eTagGenerator = eTagGenerator;
     }
 
     @PostMapping
@@ -59,10 +65,38 @@ public class AccountController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<AccountResponse> getById(@PathVariable Long id) {
-        return accountService.findById(id)
-                .map(account -> ResponseEntity.ok(accountModelAssembler.toModel(account)))
-                .orElseGet(() -> ResponseEntity.notFound().build());
+    public ResponseEntity<?> getById(
+            @PathVariable Long id,
+            @RequestHeader(
+                    value = "If-None-Match",
+                    required = false
+            ) String ifNoneMatch) {
+
+        Optional<Account> accountOptional =
+                accountService.findById(id);
+
+        if (accountOptional.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+
+        Account account = accountOptional.get();
+
+        AccountResponse response =
+                accountModelAssembler.toModel(account);
+
+        String etag = eTagGenerator.generate(response);
+
+        if (etag.equals(ifNoneMatch)) {
+            return ResponseEntity
+                    .status(HttpStatus.NOT_MODIFIED)
+                    .eTag(etag)
+                    .build();
+        }
+
+        return ResponseEntity
+                .ok()
+                .eTag(etag)
+                .body(response);
     }
 
     @PutMapping("/{id}")
