@@ -33,6 +33,7 @@ src/main/java/com/rest/personalfinance/personal_finance_api
 │   ├── AccountResponse.java
 │   ├── AccountService.java
 │   ├── AccountType.java
+│   ├── ETagGenerator.java
 │   └── dto
 │       ├── CreateAccountRequest.java
 │       ├── UpdateAccountRequest.java
@@ -102,14 +103,14 @@ Base URL:
 
 ### Accounts
 
-| Method | Endpoint         | Description                 | Response                           |
-| ------ | ---------------- | --------------------------- | ---------------------------------- |
-| POST   | `/accounts`      | Create an account           | `201 Created`                      |
-| GET    | `/accounts`      | Find all accounts           | `200 OK`                           |
-| GET    | `/accounts/{id}` | Find an account by ID       | `200 OK` / `404 Not Found`         |
-| PUT    | `/accounts/{id}` | Replace an account          | `200 OK` / `404 Not Found`         |
-| PATCH  | `/accounts/{id}` | Partially update an account | `200 OK` / `404 Not Found`         |
-| DELETE | `/accounts/{id}` | Delete an account           | `204 No Content` / `404 Not Found` |
+| **Method** | **Endpoint**     | **Description**             | **Response**                                    |
+| ---------- | ---------------- | --------------------------- | ----------------------------------------------- |
+| POST       | `/accounts`      | Create an account           | `201 Created`                                   |
+| GET        | `/accounts`      | Find all accounts           | `200 OK`                                        |
+| GET        | `/accounts/{id}` | Find an account by ID       | `200 OK` / `304 Not Modified` / `404 Not Found` |
+| PUT        | `/accounts/{id}` | Replace an account          | `200 OK` / `404 Not Found`                      |
+| PATCH      | `/accounts/{id}` | Partially update an account | `200 OK` / `404 Not Found`                      |
+| DELETE     | `/accounts/{id}` | Delete an account           | `204 No Content` / `404 Not Found`              |
 
 ## Create Account
 
@@ -200,10 +201,11 @@ with an empty collection.
 GET /api/v1/accounts/1
 ```
 
-If the account exists:
+If the account exists and no matching ETag is provided:
 
 ```http
 200 OK
+ETag: "a1b2c3..."
 ```
 
 ```json
@@ -228,6 +230,78 @@ If the account does not exist:
 ```http
 404 Not Found
 ```
+
+## HTTP Caching with ETag
+
+The API implements HTTP-level caching using `ETag`, `If-None-Match`, and `304 Not Modified`.
+
+The goal is to avoid sending the same resource representation to the client when the resource has not changed.
+
+### First request
+
+When the client requests an account without an `If-None-Match` header:
+
+```http
+GET /api/v1/accounts/1
+```
+
+The API returns the resource together with an ETag:
+
+```http
+200 OK
+ETag: "a1b2c3..."
+```
+
+The ETag identifies the current representation of the resource.
+
+### Subsequent request
+
+The client can send the ETag it previously received:
+
+```http
+GET /api/v1/accounts/1
+If-None-Match: "a1b2c3..."
+```
+
+The API compares the received ETag with the current representation.
+
+If the resource has not changed, the API returns:
+
+```http
+304 Not Modified
+ETag: "a1b2c3..."
+```
+
+No response body is returned because the client can reuse the representation it already has.
+
+### When the resource changes
+
+If the account is modified, its representation changes and a new ETag is generated.
+
+For example, after changing the balance:
+
+```http
+PUT /api/v1/accounts/1
+```
+
+A subsequent request using the old ETag will result in:
+
+```http
+200 OK
+ETag: "d4e5f6..."
+```
+
+The updated representation is returned together with the new ETag.
+
+### ETag generation
+
+The project uses a dedicated `ETagGenerator` component to generate a deterministic hash based on the current `AccountResponse`.
+
+The implementation uses the generated hash as the ETag value.
+
+This project uses HTTP-level caching rather than application-level caching mechanisms such as `@Cacheable`, Redis, or Caffeine.
+
+The goal is to explore how HTTP itself can be used to avoid unnecessary data transfers when a resource has not changed.
 
 ## Replace Account
 
@@ -341,7 +415,7 @@ Some of the concepts explored in the current implementation include:
 
 * Resource-oriented endpoints
 * HTTP methods: `POST`, `GET`, `PUT`, `PATCH`, and `DELETE`
-* HTTP status codes such as `200`, `201`, `204`, `404`, and `405`
+* HTTP status codes such as `200`, `201`, `204`, `304`, `404`, and `405`
 * `Location` header after resource creation
 * `Optional` for resource lookup
 * Idempotent update operations
@@ -355,6 +429,9 @@ Some of the concepts explored in the current implementation include:
 * Representation models
 * Collection representations
 * `RepresentationModelAssembler`
+* HTTP caching with `ETag`
+* Conditional requests with `If-None-Match`
+* `304 Not Modified`
 
 ## REST Level 3 / HATEOAS
 
@@ -395,7 +472,7 @@ The implementation and design decisions made during development are documented t
 * [x] PATCH `/api/v1/accounts/{id}`
 * [x] DELETE `/api/v1/accounts/{id}`
 * [x] REST Level 3 / HATEOAS
-* [ ] HTTP Caching / ETag
+* [x] HTTP Caching / ETag
 * [ ] Pagination
 
 ### API Improvements
