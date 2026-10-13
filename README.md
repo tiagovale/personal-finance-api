@@ -2,7 +2,7 @@
 
 REST API for managing personal finance accounts, developed with Java and Spring Boot.
 
-This project is being built as a hands-on study of REST API design, HTTP semantics, Java, Spring Boot, persistence, and related backend practices.
+This project is a hands-on study of REST API design, HTTP semantics, Java, Spring Boot, persistence, and backend engineering practices.
 
 The implementation is intentionally simple, keeping the focus on API design and backend practices rather than business-domain complexity.
 
@@ -10,17 +10,17 @@ The implementation is intentionally simple, keeping the focus on API design and 
 
 ## Technologies
 
-* Java 21
-* Spring Boot 4
-* Spring Data JPA
-* Spring HATEOAS
-* PostgreSQL 16
-* Docker
-* Maven
+- Java 21
+- Spring Boot 4
+- Spring Data JPA
+- Spring HATEOAS
+- PostgreSQL 16
+- Docker
+- Maven
 
 ## Project Structure
 
-The project uses a **package-by-feature** structure, keeping the classes related to each domain resource together.
+The project follows a **package-by-feature** structure, keeping classes related to each domain resource together.
 
 ```text
 src/main/java/com/rest/personalfinance/personal_finance_api
@@ -48,9 +48,9 @@ src/main/java/com/rest/personalfinance/personal_finance_api
 
 Make sure you have installed:
 
-* Java 21
-* Docker
-* Git
+- Java 21
+- Docker
+- Git
 
 ### 1. Clone the repository
 
@@ -67,17 +67,13 @@ The project uses PostgreSQL running in Docker.
 docker compose up -d
 ```
 
-PostgreSQL will be available on:
+PostgreSQL will be available at:
 
 ```text
 localhost:5433
 ```
 
-Database:
-
-```text
-personal_finance
-```
+Database: `personal_finance`
 
 ### 3. Run the application
 
@@ -95,7 +91,7 @@ http://localhost:8080
 
 ## API
 
-Base URL:
+Base path:
 
 ```text
 /api/v1
@@ -103,23 +99,23 @@ Base URL:
 
 ### Accounts
 
-| **Method** | **Endpoint**     | **Description**             | **Response**                                    |
-| ---------- | ---------------- | --------------------------- | ----------------------------------------------- |
-| POST       | `/accounts`      | Create an account           | `201 Created`                                   |
-| GET        | `/accounts`      | Find all accounts           | `200 OK`                                        |
-| GET        | `/accounts/{id}` | Find an account by ID       | `200 OK` / `304 Not Modified` / `404 Not Found` |
-| PUT        | `/accounts/{id}` | Replace an account          | `200 OK` / `404 Not Found`                      |
-| PATCH      | `/accounts/{id}` | Partially update an account | `200 OK` / `404 Not Found`                      |
-| DELETE     | `/accounts/{id}` | Delete an account           | `204 No Content` / `404 Not Found`              |
+| Method | Endpoint | Description | Response |
+|---|---|---|---|
+| `POST` | `/accounts` | Create an account | `201 Created` |
+| `GET` | `/accounts` | List accounts with pagination | `200 OK` |
+| `GET` | `/accounts/{id}` | Find an account by ID | `200 OK`, `304 Not Modified`, or `404 Not Found` |
+| `PUT` | `/accounts/{id}` | Replace an account | `200 OK` or `404 Not Found` |
+| `PATCH` | `/accounts/{id}` | Partially update an account | `200 OK` or `404 Not Found` |
+| `DELETE` | `/accounts/{id}` | Delete an account | `204 No Content` or `404 Not Found` |
 
 ## Create Account
+
+**Request**
 
 ```http
 POST /api/v1/accounts
 Content-Type: application/json
 ```
-
-Request:
 
 ```json
 {
@@ -129,7 +125,7 @@ Request:
 }
 ```
 
-Response:
+**Response**
 
 ```http
 201 Created
@@ -145,32 +141,61 @@ Location: /api/v1/accounts/1
 }
 ```
 
+The `Location` header identifies the newly created resource.
+
 ## Find All Accounts
 
+The collection endpoint uses Spring Data pagination and Spring HATEOAS to return account representations together with navigation links and page metadata.
+
+**Request**
+
 ```http
-GET /api/v1/accounts
+GET /api/v1/accounts?page=0&size=5&sort=balance,desc
 ```
 
-Response:
+### Pagination Parameters
+
+| Parameter | Description | Default |
+|---|---|---|
+| `page` | Zero-based page number | `0` |
+| `size` | Number of items per page | `20` |
+| `sort` | Property and sort direction | `id` ascending |
+
+Examples of sorting:
+
+```http
+GET /api/v1/accounts?page=0&size=5&sort=name,asc
+GET /api/v1/accounts?page=0&size=5&sort=balance,desc
+```
+
+The maximum page size is configured as `100`:
+
+```properties
+spring.data.web.pageable.max-page-size=100
+```
+
+Requests exceeding this limit are capped at the configured maximum.
+
+### Response
 
 ```http
 200 OK
 ```
 
-The collection is represented using **Spring HATEOAS** and includes navigation links:
+The response includes account representations under `_embedded`, navigation links under `_links`, and pagination metadata under `page`.
 
 ```json
 {
   "_embedded": {
     "accountResponseList": [
       {
-        "id": 1,
-        "name": "Conta Principal",
-        "type": "CHECKING",
-        "balance": 1500.00,
+        "id": 7,
+        "name": "Poupança para Casa",
+        "type": "SAVINGS",
+        "balance": 12500.00,
         "_links": {
           "self": {
-            "href": "http://localhost:8080/api/v1/accounts/1"
+            "href": "http://localhost:8080/api/v1/accounts/7"
           },
           "all-accounts": {
             "href": "http://localhost:8080/api/v1/accounts"
@@ -180,28 +205,54 @@ The collection is represented using **Spring HATEOAS** and includes navigation l
     ]
   },
   "_links": {
+    "first": {
+      "href": "http://localhost:8080/api/v1/accounts?page=0&size=5&sort=balance,desc"
+    },
     "self": {
-      "href": "http://localhost:8080/api/v1/accounts"
+      "href": "http://localhost:8080/api/v1/accounts?page=0&size=5&sort=balance,desc"
+    },
+    "next": {
+      "href": "http://localhost:8080/api/v1/accounts?page=1&size=5&sort=balance,desc"
+    },
+    "last": {
+      "href": "http://localhost:8080/api/v1/accounts?page=2&size=5&sort=balance,desc"
     }
+  },
+  "page": {
+    "number": 0,
+    "size": 5,
+    "totalElements": 11,
+    "totalPages": 3
   }
 }
 ```
 
-When no accounts exist, the endpoint still returns:
+The example shows one account item to keep the README readable. The actual response includes all accounts belonging to the requested page.
 
-```http
-200 OK
-```
+The available navigation links depend on the current page. For example, `next` is available when another page exists.
 
-with an empty collection.
+The implementation uses:
+
+- `Page<Account>` and `Pageable` in the service layer.
+- `PagedResourcesAssembler` to generate the paginated HATEOAS representation.
+- `@PageableDefault` to configure the default page size and sorting.
+- `spring.data.web.pageable.max-page-size` to limit the maximum page size.
+
+Using pagination avoids returning the entire collection in a single response. The `Page` abstraction also provides total-element and total-page metadata, which may require an additional count query.
+
+When no accounts exist, the endpoint still returns `200 OK` with an empty collection.
 
 ## Find Account by ID
+
+**Request**
 
 ```http
 GET /api/v1/accounts/1
 ```
 
-If the account exists and no matching ETag is provided:
+If the account exists and no matching ETag is provided, the API returns `200 OK`, the resource representation, and an `ETag` header.
+
+**Response**
 
 ```http
 200 OK
@@ -237,7 +288,7 @@ The API implements HTTP-level caching using `ETag`, `If-None-Match`, and `304 No
 
 The goal is to avoid sending the same resource representation to the client when the resource has not changed.
 
-### First request
+### First Request
 
 When the client requests an account without an `If-None-Match` header:
 
@@ -254,7 +305,7 @@ ETag: "a1b2c3..."
 
 The ETag identifies the current representation of the resource.
 
-### Subsequent request
+### Subsequent Request
 
 The client can send the ETag it previously received:
 
@@ -263,9 +314,7 @@ GET /api/v1/accounts/1
 If-None-Match: "a1b2c3..."
 ```
 
-The API compares the received ETag with the current representation.
-
-If the resource has not changed, the API returns:
+If the representation has not changed, the API returns:
 
 ```http
 304 Not Modified
@@ -274,45 +323,41 @@ ETag: "a1b2c3..."
 
 No response body is returned because the client can reuse the representation it already has.
 
-### When the resource changes
+### When the Resource Changes
 
 If the account is modified, its representation changes and a new ETag is generated.
 
-For example, after changing the balance:
+For example, after updating the balance:
 
 ```http
 PUT /api/v1/accounts/1
 ```
 
-A subsequent request using the old ETag will result in:
+A subsequent request using the old ETag receives the updated representation and a new ETag:
 
 ```http
 200 OK
 ETag: "d4e5f6..."
 ```
 
-The updated representation is returned together with the new ETag.
-
-### ETag generation
+### ETag Generation
 
 The project uses a dedicated `ETagGenerator` component to generate a deterministic hash based on the current `AccountResponse`.
 
-The implementation uses the generated hash as the ETag value.
+The generated hash is used as the ETag value.
 
-This project uses HTTP-level caching rather than application-level caching mechanisms such as `@Cacheable`, Redis, or Caffeine.
-
-The goal is to explore how HTTP itself can be used to avoid unnecessary data transfers when a resource has not changed.
+This project explores HTTP-level caching rather than application-level caching mechanisms such as `@Cacheable`, Redis, or Caffeine.
 
 ## Replace Account
 
-The `PUT` endpoint replaces the account representation.
+The `PUT` endpoint replaces the account's editable representation.
+
+**Request**
 
 ```http
 PUT /api/v1/accounts/1
 Content-Type: application/json
 ```
-
-Request:
 
 ```json
 {
@@ -322,7 +367,7 @@ Request:
 }
 ```
 
-Response:
+**Response**
 
 ```http
 200 OK
@@ -347,6 +392,8 @@ If the account does not exist:
 
 The `PATCH` endpoint allows individual fields to be updated without replacing the entire account.
 
+**Request**
+
 ```http
 PATCH /api/v1/accounts/1
 Content-Type: application/json
@@ -362,7 +409,7 @@ For example, only the balance can be updated:
 
 The other fields remain unchanged.
 
-Response:
+**Response**
 
 ```http
 200 OK
@@ -379,7 +426,11 @@ Response:
 
 The PATCH request uses `JsonNullable` to distinguish between a field that was not provided and a field that was explicitly provided as `null`.
 
+If the account does not exist, the API returns `404 Not Found`.
+
 ## Delete Account
+
+**Request**
 
 ```http
 DELETE /api/v1/accounts/1
@@ -401,56 +452,54 @@ If the account does not exist:
 
 The following account types are currently supported:
 
-```text
-CHECKING
-SAVINGS
-CREDIT_CARD
-```
+- `CHECKING`
+- `SAVINGS`
+- `CREDIT_CARD`
 
 ## REST and HTTP Semantics
 
 The API is being developed with a focus on understanding and applying HTTP semantics in practice.
 
-Some of the concepts explored in the current implementation include:
+Concepts explored in the current implementation include:
 
-* Resource-oriented endpoints
-* HTTP methods: `POST`, `GET`, `PUT`, `PATCH`, and `DELETE`
-* HTTP status codes such as `200`, `201`, `204`, `304`, `404`, and `405`
-* `Location` header after resource creation
-* `Optional` for resource lookup
-* Idempotent update operations
-* Partial resource updates with `PATCH`
-* DTOs using Java records
-* `JsonNullable` for PATCH request semantics
-* Package-by-feature organization
-* REST Level 3
-* HATEOAS
-* Hypermedia links
-* Representation models
-* Collection representations
-* `RepresentationModelAssembler`
-* HTTP caching with `ETag`
-* Conditional requests with `If-None-Match`
-* `304 Not Modified`
+- Resource-oriented endpoints.
+- HTTP methods: `POST`, `GET`, `PUT`, `PATCH`, and `DELETE`.
+- HTTP status codes such as `200`, `201`, `204`, `304`, and `404`.
+- `Location` header after resource creation.
+- `Optional` for resource lookup.
+- Idempotent update operations.
+- Partial resource updates with `PATCH`.
+- DTOs using Java records.
+- `JsonNullable` for PATCH request semantics.
+- Package-by-feature organization.
+- Pagination and sorting with Spring Data.
+- REST Level 3 and HATEOAS.
+- Hypermedia links and representation models.
+- `RepresentationModelAssembler` and `PagedResourcesAssembler`.
+- Collection representations and pagination metadata.
+- HTTP caching with ETag.
+- Conditional requests with `If-None-Match`.
+- `304 Not Modified`.
 
 ## REST Level 3 / HATEOAS
 
-The API currently includes a REST Level 3 implementation using **Spring HATEOAS**.
+The API includes a REST Level 3 implementation using Spring HATEOAS.
 
 Resource representations expose hypermedia links that allow clients to navigate between related resources.
 
 For example, an account representation exposes:
 
-* `self` — link to the current account
-* `all-accounts` — link to the account collection
+- `self` — link to the current account.
+- `all-accounts` — link to the account collection.
 
 The implementation uses:
 
-* `RepresentationModel`
-* `CollectionModel`
-* `RepresentationModelAssembler`
-* `linkTo()`
-* `methodOn()`
+- `RepresentationModel`
+- `CollectionModel`
+- `RepresentationModelAssembler`
+- `PagedResourcesAssembler`
+- `linkTo()`
+- `methodOn()`
 
 The goal is to explore how hypermedia can be used as part of a REST API rather than simply returning resource data.
 
@@ -464,34 +513,34 @@ The implementation and design decisions made during development are documented t
 
 ### REST and API Design
 
-* [x] Create Account resource
-* [x] POST `/api/v1/accounts`
-* [x] GET `/api/v1/accounts`
-* [x] GET `/api/v1/accounts/{id}`
-* [x] PUT `/api/v1/accounts/{id}`
-* [x] PATCH `/api/v1/accounts/{id}`
-* [x] DELETE `/api/v1/accounts/{id}`
-* [x] REST Level 3 / HATEOAS
-* [x] HTTP Caching / ETag
-* [ ] Pagination
+- [x] Create the `Account` resource.
+- [x] `POST /api/v1/accounts`
+- [x] `GET /api/v1/accounts`
+- [x] `GET /api/v1/accounts/{id}`
+- [x] `PUT /api/v1/accounts/{id}`
+- [x] `PATCH /api/v1/accounts/{id}`
+- [x] `DELETE /api/v1/accounts/{id}`
+- [x] REST Level 3 / HATEOAS
+- [x] HTTP Caching / ETag
+- [x] Pagination and sorting
 
 ### API Improvements
 
-* [ ] Bean Validation
-* [ ] Global exception handling
-* [ ] DTO improvements
-* [ ] OpenAPI / Swagger
-* [ ] Automated tests
-* [ ] Database migrations
+- [ ] Bean Validation
+- [ ] Global exception handling
+- [ ] DTO improvements
+- [ ] OpenAPI / Swagger
+- [ ] Automated tests
+- [ ] Database migrations
 
 ### Domain
 
-* [ ] Transaction resource
-* [ ] User resource
-* [ ] Authentication and authorization
+- [ ] Transaction resource
+- [ ] User resource
+- [ ] Authentication and authorization
 
 ## Author
 
-Tiago Vale
+**Tiago Vale**
 
 This project is part of a hands-on learning journey focused on backend development with Java and Spring Boot.
