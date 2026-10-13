@@ -4,6 +4,8 @@ import aj.org.objectweb.asm.commons.Remapper;
 import com.rest.personalfinance.personal_finance_api.account.dto.CreateAccountRequest;
 import com.rest.personalfinance.personal_finance_api.account.dto.UpdateAccountPatchRequest;
 import com.rest.personalfinance.personal_finance_api.account.dto.UpdateAccountRequest;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -32,6 +34,12 @@ public class AccountService {
     public List<Account> findAll() {
         return accountRepository.findAll();
     }
+
+
+    public Page<Account> findAll(Pageable pageable) {
+        return accountRepository.findAll(pageable);
+    }
+
 
     public Optional<Account> findById(Long id) {
         return accountRepository.findById(id);

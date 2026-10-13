@@ -4,7 +4,12 @@ import com.rest.personalfinance.personal_finance_api.account.dto.AccountResponse
 import com.rest.personalfinance.personal_finance_api.account.dto.CreateAccountRequest;
 import com.rest.personalfinance.personal_finance_api.account.dto.UpdateAccountPatchRequest;
 import com.rest.personalfinance.personal_finance_api.account.dto.UpdateAccountRequest;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
+import org.springframework.data.web.PagedResourcesAssembler;
 import org.springframework.hateoas.CollectionModel;
+import org.springframework.hateoas.PagedModel;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.DigestUtils;
@@ -43,26 +48,24 @@ public class AccountController {
                 .body(account);
     }
 
+
     @GetMapping
-    public ResponseEntity<CollectionModel<AccountResponse>> getAll() {
+    public ResponseEntity<PagedModel<AccountResponse>> getAll(
+            @PageableDefault(size = 20, sort = "id")
+            Pageable pageable,
+            PagedResourcesAssembler<Account> pagedResourcesAssembler) {
 
-        List<AccountResponse> accounts = accountService.findAll()
-                .stream()
-                .map(accountModelAssembler::toModel)
-                .toList();
+        Page<Account> accounts = accountService.findAll(pageable);
 
-        CollectionModel<AccountResponse> collection =
-                CollectionModel.of(accounts);
+        PagedModel<AccountResponse> response =
+                pagedResourcesAssembler.toModel(
+                        accounts,
+                        accountModelAssembler
+                );
 
-        collection.add(
-                linkTo(
-                        methodOn(AccountController.class)
-                                .getAll()
-                ).withSelfRel()
-        );
-
-        return ResponseEntity.ok(collection);
+        return ResponseEntity.ok(response);
     }
+
 
     @GetMapping("/{id}")
     public ResponseEntity<?> getById(

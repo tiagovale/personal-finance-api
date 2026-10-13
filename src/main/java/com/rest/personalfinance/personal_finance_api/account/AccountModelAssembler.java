@@ -1,6 +1,7 @@
 package com.rest.personalfinance.personal_finance_api.account;
 
 import com.rest.personalfinance.personal_finance_api.account.dto.AccountResponse;
+import org.springframework.data.domain.Pageable;
 import org.springframework.hateoas.server.RepresentationModelAssembler;
 import org.springframework.stereotype.Component;
 
@@ -10,6 +11,7 @@ import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.methodOn;
 @Component
 public class AccountModelAssembler
         implements RepresentationModelAssembler<Account, AccountResponse> {
+
 
     @Override
     public AccountResponse toModel(Account account) {
@@ -31,10 +33,11 @@ public class AccountModelAssembler
         response.add(
                 linkTo(
                         methodOn(AccountController.class)
-                                .getAll()
+                                .getAll(Pageable.unpaged(), null)
                 ).withRel("all-accounts")
         );
 
         return response;
     }
+
 }
