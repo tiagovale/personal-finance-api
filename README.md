@@ -7,7 +7,6 @@ This project is a hands-on study of REST API design, HTTP semantics, Java, Sprin
 The implementation is intentionally simple, keeping the focus on API design and backend practices rather than business-domain complexity.
 
 **Repository:** https://github.com/tiagovale/personal-finance-api
-
 ## Technologies
 
 - Java 21
@@ -26,18 +25,22 @@ The project follows a **package-by-feature** structure, keeping classes related 
 src/main/java/com/rest/personalfinance/personal_finance_api
 │
 ├── account
+│   ├── dto
+│   │   ├── AccountResponse.java
+│   │   ├── CreateAccountRequest.java
+│   │   ├── UpdateAccountRequest.java
+│   │   └── UpdateAccountPatchRequest.java
 │   ├── Account.java
 │   ├── AccountController.java
+│   ├── AccountNotFoundException.java
 │   ├── AccountModelAssembler.java
 │   ├── AccountRepository.java
-│   ├── AccountResponse.java
 │   ├── AccountService.java
 │   ├── AccountType.java
-│   ├── ETagGenerator.java
-│   └── dto
-│       ├── CreateAccountRequest.java
-│       ├── UpdateAccountRequest.java
-│       └── UpdateAccountPatchRequest.java
+│   └── ETagGenerator.java
+│
+├── exception
+│   └── GlobalExceptionHandler.java
 │
 └── PersonalFinanceApiApplication.java
 ```
@@ -276,11 +279,7 @@ ETag: "a1b2c3..."
 }
 ```
 
-If the account does not exist:
-
-```http
-404 Not Found
-```
+If the account does not exist, the API returns `404 Not Found` with a structured error response (see [Error Handling](#error-handling)).
 
 ## HTTP Caching with ETag
 
@@ -448,6 +447,45 @@ If the account does not exist:
 404 Not Found
 ```
 
+## Error Handling
+
+The API uses Spring's `ProblemDetail` to return structured HTTP error responses following **RFC 9457**. The response uses the `application/problem+json` media type.
+
+For account lookups, an `AccountNotFoundException` is handled by a centralized `@RestControllerAdvice`, which maps the exception to HTTP `404 Not Found`.
+
+**Example request**
+
+```http
+GET /api/v1/accounts/999
+```
+
+**Example response**
+
+```http
+HTTP/1.1 404 Not Found
+Content-Type: application/problem+json
+```
+
+```json
+{
+  "type": "https://api.example.com/problems/account-not-found",
+  "title": "Account not found",
+  "status": 404,
+  "detail": "Account with id 999 was not found",
+  "instance": "/api/v1/accounts/999"
+}
+```
+
+The `type` URI above is currently an illustrative identifier and should be replaced with a stable application-owned URI before the API is published for external consumers.
+
+- `type`: identifies the category of problem.
+- `title`: provides a short, human-readable summary.
+- `status`: represents the HTTP status code.
+- `detail`: describes this specific occurrence.
+- `instance`: identifies the request path associated with the error.
+
+Consumers should rely on stable identifiers such as `type` rather than parsing the human-readable `detail` text. Other endpoints may still use their existing error responses until they are migrated to this convention.
+
 ## Account Types
 
 The following account types are currently supported:
@@ -480,6 +518,7 @@ Concepts explored in the current implementation include:
 - HTTP caching with ETag.
 - Conditional requests with `If-None-Match`.
 - `304 Not Modified`.
+- Structured HTTP error responses with `ProblemDetail` (RFC 9457).
 
 ## REST Level 3 / HATEOAS
 
@@ -527,7 +566,9 @@ The implementation and design decisions made during development are documented t
 ### API Improvements
 
 - [ ] Bean Validation
-- [ ] Global exception handling
+- [x] Global exception handling for account-not-found errors
+- [x] Structured error responses with `ProblemDetail`
+- [ ] Additional exception handling scenarios
 - [ ] DTO improvements
 - [ ] OpenAPI / Swagger
 - [ ] Automated tests
