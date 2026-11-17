@@ -542,6 +542,33 @@ The implementation uses:
 
 The goal is to explore how hypermedia can be used as part of a REST API rather than simply returning resource data.
 
+## Automated Testing
+
+The project includes an initial automated MVC test using **JUnit 5**, **Mockito**, and **Spring MockMvc**.
+
+The `AccountControllerTest` uses `@WebMvcTest(AccountController.class)` to test the HTTP layer without starting an HTTP server or connecting to PostgreSQL. `@MockitoBean` replaces the Controller dependencies, and `@Import(GlobalExceptionHandler.class)` includes the exception handler in the test context.
+
+### Account Not Found Test
+
+The test simulates `AccountService.findById(999L)` returning `Optional.empty()` and verifies that `GET /api/v1/accounts/999` produces:
+
+- HTTP `404 Not Found`.
+- A response compatible with `application/problem+json`.
+- A `status` field equal to `404`.
+- A `title` field equal to `Account not found`.
+
+This is an initial contract test for the account-not-found scenario; it does not yet provide comprehensive endpoint or integration-test coverage.
+
+### Run the Test
+
+From the project root:
+
+```bash
+./mvnw -Dtest=AccountControllerTest test
+```
+
+Or run `AccountControllerTest` directly in IntelliJ IDEA.
+
 ## Development
 
 This project is continuously evolving as new REST concepts and backend practices are explored.
@@ -571,7 +598,8 @@ The implementation and design decisions made during development are documented t
 - [ ] Additional exception handling scenarios
 - [ ] DTO improvements
 - [ ] OpenAPI / Swagger
-- [ ] Automated tests
+- [x] Initial MockMvc test for account-not-found error response
+- [ ] Broader automated test coverage
 - [ ] Database migrations
 
 ### Domain
